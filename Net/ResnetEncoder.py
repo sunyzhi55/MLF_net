@@ -295,7 +295,7 @@ class ResNetEncoder(nn.Module):
                  block_inplanes,
                  n_input_channels=1,
                  conv1_t_size=7,
-                 conv1_t_stride=1,
+                 conv1_t_stride=2,
                  no_max_pool=False,
                  shortcut_type='B',
                  widen_factor=1.0,
@@ -383,22 +383,23 @@ class ResNetEncoder(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        x = self.conv1(x)
+        x = self.conv1(x)  # torch.Size([8, 64, 48, 64, 48])
+        # print('conv1', self.conv1)
         # print("conv1", x.shape)
-        x = self.bn1(x)
+        x = self.bn1(x)  # torch.Size([8, 64, 48, 64, 48])
         # print("bn1", x.shape)
-        x = self.relu(x)
+        x = self.relu(x)   # torch.Size([8, 64, 48, 64, 48])
         # print("relu", x.shape)
         if not self.no_max_pool:
             x = self.maxpool(x)
 
-        layer1_x = self.layer1(x)  # [8, 64, 48, 32, 24]
+        layer1_x = self.layer1(x)  # torch.Size([8, 64, 24, 32, 24])
         # print("layer1", layer1_x.shape)
-        layer2_x = self.layer2(layer1_x)  # [8, 128, 24, 16, 12]
+        layer2_x = self.layer2(layer1_x)  # torch.Size([8, 128, 12, 16, 12])
         # print("layer2", layer2_x.shape)
-        layer3_x = self.layer3(layer2_x)   # [8, 256, 12, 8, 6]
+        layer3_x = self.layer3(layer2_x)   # torch.Size([8, 256, 6, 8, 6])
         # print("layer3", layer3_x.shape)
-        layer4_x = self.layer4(layer3_x)   # [8, 512, 6, 4, 3]
+        layer4_x = self.layer4(layer3_x)   # torch.Size([8, 512, 3, 4, 3])
         # print("layer4", layer4_x.shape)
 
         x = self.avgpool(layer4_x)
@@ -411,44 +412,46 @@ class ResNetEncoder(nn.Module):
         return layer1_x, layer2_x, layer3_x, layer4_x, x
 
 if __name__ == '__main__':
-    mri_dir = r'/data3/wangchangmiao/ADNI/freesurfer/ADNI1/MRI'  # 替换为 MRI 文件的路径
-    pet_dir = r'/data3/wangchangmiao/ADNI/freesurfer/ADNI1/MRI'  # 替换为 PET 文件的路径
-    cli_dir = r'./ADNI_Clinical.csv'
-    csv_file = r'./ADNI1_all.csv'  # 替换为 CSV 文件路径
-    batch_size = 8  # 设置批次大小
-
-    dataset = MriPetDataset(mri_dir, pet_dir, cli_dir, csv_file, valid_group=("pMCI", "sMCI"))
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
-    MriExtraction = get_no_pretrained_Vision_Encoder() # input [B,C,128,128,128] OUT[8, 400]
-    PetExtraction = get_no_pretrained_Vision_Encoder() # input [B,C,128,128,128] OUT[8, 400]
-    # 测试读取数据
-    print('dataloader', len(dataloader))
-    print('dataset', len(dataloader.dataset))
-    for i, (mri_imgs, pet_imgs, cli_tab, labels) in enumerate(dataloader):
-        mri1, mri2, mri3, mri4, mri_extraction = MriExtraction(mri_imgs)
-        pet1, pet2, pet3, pet4, pet_extraction = PetExtraction(pet_imgs)
-        print(f"{i} MRI Images batch shape: {mri_imgs.shape}, after Resnet shape: {mri_extraction.shape}")
-        print(f"{i} PET Images batch shape: {pet_imgs.shape}, after Resnet shape: {pet_extraction.shape}")
-        print(f"{i} Clinical Table batch shape: {cli_tab.shape}")
-        print(f"{i} Labels batch shape: {labels}")
-
-
-    # x = torch.randn(8, 1, 96, 128, 96)
-    # # model = ResNetEncoder(Bottleneck, [3, 4, 6, 3], get_inplanes())
-    # model = ResNetEncoder(BasicBlock, [2, 2, 2, 2], get_inplanes())
+    # mri_dir = r'/data3/wangchangmiao/ADNI/freesurfer/ADNI1/MRI'  # 替换为 MRI 文件的路径
+    # pet_dir = r'/data3/wangchangmiao/ADNI/freesurfer/ADNI1/MRI'  # 替换为 PET 文件的路径
+    # cli_dir = r'./ADNI_Clinical.csv'
+    # csv_file = r'./ADNI1_all.csv'  # 替换为 CSV 文件路径
+    # batch_size = 8  # 设置批次大小
     #
-    # mri1, mri2, mri3, mri4, mri_extraction = model(x)
-    # # mri_extraction = model(x)
-    # print("mri1", mri1.shape)
-    # print("mri2", mri2.shape)
-    # print("mri3", mri3.shape)
-    # print("mri4", mri4.shape)
-    # print("mri_extraction", mri_extraction.shape)
+    # dataset = MriPetDataset(mri_dir, pet_dir, cli_dir, csv_file, valid_group=("pMCI", "sMCI"))
+    # dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    # MriExtraction = get_no_pretrained_Vision_Encoder() # input [B,C,128,128,128] OUT[8, 400]
+    # PetExtraction = get_no_pretrained_Vision_Encoder() # input [B,C,128,128,128] OUT[8, 400]
+    # # 测试读取数据
+    # print('dataloader', len(dataloader))
+    # print('dataset', len(dataloader.dataset))
+    # for i, (mri_imgs, pet_imgs, cli_tab, labels) in enumerate(dataloader):
+    #     mri1, mri2, mri3, mri4, mri_extraction = MriExtraction(mri_imgs)
+    #     pet1, pet2, pet3, pet4, pet_extraction = PetExtraction(pet_imgs)
+    #     print(f"{i} MRI Images batch shape: {mri_imgs.shape}, after Resnet shape: {mri_extraction.shape}")
+    #     print(f"{i} PET Images batch shape: {pet_imgs.shape}, after Resnet shape: {pet_extraction.shape}")
+    #     print(f"{i} Clinical Table batch shape: {cli_tab.shape}")
+    #     print(f"{i} Labels batch shape: {labels}")
+
+
+    x = torch.randn(8, 1, 96, 128, 96)
+    # model = ResNetEncoder(Bottleneck, [3, 4, 6, 3], get_inplanes())
+    model = ResNetEncoder(BasicBlock, [2, 2, 2, 2], get_inplanes())
+    print(f"参数量:{sum(p.numel() for p in model.parameters())}")
+
+    mri1, mri2, mri3, mri4, mri_extraction = model(x)
+    # mri_extraction = model(x)
+    print("mri1", mri1.shape)
+    print("mri2", mri2.shape)
+    print("mri3", mri3.shape)
+    print("mri4", mri4.shape)
+    print("mri_extraction", mri_extraction.shape)
     """
-    mri1 torch.Size([8, 64, 48, 32, 24])
-    mri2 torch.Size([8, 128, 24, 16, 12])
-    mri3 torch.Size([8, 256, 12, 8, 6])
-    mri4 torch.Size([8, 512, 6, 4, 3])
+    参数量:33365200
+    mri1 torch.Size([8, 64, 24, 32, 24])
+    mri2 torch.Size([8, 128, 12, 16, 12])
+    mri3 torch.Size([8, 256, 6, 8, 6])
+    mri4 torch.Size([8, 512, 3, 4, 3])
     mri_extraction torch.Size([8, 400])
     """
 

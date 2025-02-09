@@ -1,6 +1,7 @@
 from Net.basic import *
 import torch.nn.functional as F
 from Net.ResnetEncoder import ResNetEncoder
+from Net.poolformer import poolformer_s12
 import torch
 import torch.nn as nn
 from Net.kan import KAN
@@ -201,21 +202,23 @@ class SpecificMultiLayerFusion(nn.Module):
         super(SpecificMultiLayerFusion, self).__init__()
         self.name = 'MultiLayerFusion_ver1.0'
         self.MRI_encoder = ResNetEncoder(BasicBlock, [2, 2, 2, 2], get_inplanes())
-        self.PET_encoder = ResNetEncoder(BasicBlock, [2, 2, 2, 2], get_inplanes())
+        # self.MRI_encoder = poolformer_s12(num_classes=400)
+        # self.PET_encoder = ResNetEncoder(BasicBlock, [2, 2, 2, 2], get_inplanes())
+        self.PET_encoder = poolformer_s12(num_classes=400)
         self.CLI_encoder = TransformerEncoder(output_dim=256)
         self.MRI_CMIM = MultiCrossModalInteraction(input_channel_list=[64, 256, 1], output_channel_list=[64, 256, 1])
         self.PET_CMIM = MultiCrossModalInteraction(input_channel_list=[64, 256, 1], output_channel_list=[64, 256, 1])
         self.MSFM = MultiScaleFusionModule()
-        self.mri1_fit = nn.Linear(36864, 256)  # torch.Size([8, 64, 256])
-        self.mri2_fit = nn.Linear(4608, 256)  # torch.Size([8, 128, 256])
-        self.mri3_fit = nn.Linear(576, 256)  # torch.Size([8, 256, 256])
-        self.mri4_fit = nn.Linear(72, 256)  # torch.Size([8, 512, 256])
+        self.mri1_fit = nn.Linear(18432, 256)  # torch.Size([8, 64, 256])
+        self.mri2_fit = nn.Linear(2304, 256)  # torch.Size([8, 128, 256])
+        self.mri3_fit = nn.Linear(288, 256)  # torch.Size([8, 256, 256])
+        self.mri4_fit = nn.Linear(36, 256)  # torch.Size([8, 512, 256])
         self.mrif_fit = nn.Linear(400, 256)  # torch.Size([8, 256])
 
-        self.pet1_fit = nn.Linear(36864, 256)  # torch.Size([8, 64, 256])
-        self.pet2_fit = nn.Linear(4608, 256)  # torch.Size([8, 128, 256])
-        self.pet3_fit = nn.Linear(576, 256)  # torch.Size([8, 256, 256])
-        self.pet4_fit = nn.Linear(72, 256)  # torch.Size([8, 512, 256])
+        self.pet1_fit = nn.Linear(18432, 256)  # torch.Size([8, 64, 256])
+        self.pet2_fit = nn.Linear(2304, 256)  # torch.Size([8, 128, 256])
+        self.pet3_fit = nn.Linear(288, 256)  # torch.Size([8, 256, 256])
+        self.pet4_fit = nn.Linear(36, 256)  # torch.Size([8, 512, 256])
         self.petf_fit = nn.Linear(400, 256)  # torch.Size([8, 256])
         # self.SA1 = SelfAttention(16, 256, 256, hidden_dropout_prob=0.2)
         # self.SA2 = SelfAttention(16, 256, 256, hidden_dropout_prob=0.2)
@@ -224,10 +227,10 @@ class SpecificMultiLayerFusion(nn.Module):
 
     def forward(self, mri, pet, cli):
         """
-        Layer1 torch.Size([8, 64, 48, 32, 24])
-        Layer2 torch.Size([8, 128, 24, 16, 12])
-        Layer3 torch.Size([8, 256, 12, 8, 6])
-        Layer4 torch.Size([8, 512, 6, 4, 3])
+        Layer1 torch.Size([8, 64, 24, 32, 24])
+        Layer2 torch.Size([8, 128, 12, 16, 12])
+        Layer3 torch.Size([8, 256, 6, 8, 6])
+        Layer4 torch.Size([8, 512, 3, 4, 3])
         final_extraction torch.Size([8, 400])
         """
         layer1_mri, layer2_mri, layer3_mri, layer4_mri, output_mri = self.MRI_encoder(mri)
@@ -235,10 +238,10 @@ class SpecificMultiLayerFusion(nn.Module):
         cli_feature = self.CLI_encoder(cli)
         cli_feature = torch.unsqueeze(cli_feature, dim=1)  # torch.Size([8, 1, 256])
         # cli_feature = cli_feature.transpose(-1, -2)
-        mri_Layer1_flattened = layer1_mri.view(layer1_mri.size(0), layer1_mri.size(1), -1) # torch.Size([8, 64, 36864])
-        mri_Layer2_flattened = layer2_mri.view(layer2_mri.size(0), layer2_mri.size(1), -1) # torch.Size([8, 128, 4608])
-        mri_Layer3_flattened = layer3_mri.view(layer3_mri.size(0), layer3_mri.size(1), -1) # torch.Size([8, 256, 576])
-        mri_Layer4_flattened = layer4_mri.view(layer4_mri.size(0), layer4_mri.size(1), -1) # torch.Size([8, 512, 72])
+        mri_Layer1_flattened = layer1_mri.view(layer1_mri.size(0), layer1_mri.size(1), -1) # torch.Size([8, 64, 18432])
+        mri_Layer2_flattened = layer2_mri.view(layer2_mri.size(0), layer2_mri.size(1), -1) # torch.Size([8, 128, 2304])
+        mri_Layer3_flattened = layer3_mri.view(layer3_mri.size(0), layer3_mri.size(1), -1) # torch.Size([8, 256, 288])
+        mri_Layer4_flattened = layer4_mri.view(layer4_mri.size(0), layer4_mri.size(1), -1) # torch.Size([8, 512, 36])
 
 
         MRI_CMIM_output1, MRI_CMIM_output2, MRI_CMIM_output3 = self.MRI_CMIM(self.mri1_fit(mri_Layer1_flattened),
