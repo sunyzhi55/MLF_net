@@ -58,9 +58,12 @@ class Runtime_Observer:
         self.early_stopping = EarlyStopping(patience=50, verbose=True)
         self.test_spe = torchmetrics.Specificity(num_classes=2, task='binary').to(device)
         self.model_save_path = self.log_dir + '/best_model.pth'
-    def update(self, prediction, label):
+    def update(self, prediction, prob, label):
+        # print("prediction", prediction)
+        # print("label", label)
+        # print("prob", prob)
         self.test_acc.update(prediction, label)
-        self.test_auc.update(prediction, label)
+        self.test_auc.update(prob, label)
         self.test_recall.update(prediction, label)
         self.test_precision.update(prediction, label)
         self.test_F1.update(prediction, label)

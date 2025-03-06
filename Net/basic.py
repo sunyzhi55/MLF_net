@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from timm.models.layers import DropPath, trunc_normal_
 from Net.kan import*
+from mamba_ssm import Mamba
 
 # 定义交叉洗牌函数，交叉/穿插拼接
 def shuffle_interleave(tensor1, tensor2):
@@ -449,7 +450,6 @@ class DenseNet(torch.nn.Module):
         """
         return x
 
-
 class MlpKan(torch.nn.Module):
     def __init__(self, init_features=64, classes=2):
         """
@@ -460,10 +460,12 @@ class MlpKan(torch.nn.Module):
 
         self.classifer = torch.nn.Sequential(
             torch.nn.Linear(self.feature_channel_num, self.feature_channel_num // 2),
+            # KAN([self.feature_channel_num, self.feature_channel_num // 2]),
             torch.nn.ReLU(),
             torch.nn.Dropout(0.5),
-            torch.nn.Linear(self.feature_channel_num // 2, classes),
-            torch.nn.Sigmoid()
+            # torch.nn.Linear(self.feature_channel_num // 2, classes),
+            KAN([self.feature_channel_num // 2, classes])
+            # torch.nn.Sigmoid()
         )
 
     def forward(self, x):

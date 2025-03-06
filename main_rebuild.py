@@ -1,10 +1,10 @@
 import argparse
-import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '1, 2, 3'
+# import os
+# os.environ['CUDA_VISIBLE_DEVICES'] = '1, 2, 3'
 from datetime import datetime
 from pathlib import Path
 from sklearn.model_selection import KFold, StratifiedKFold
-from Dataset import MriPetDataset
+from Dataset import MriPetDataset, MriPetDatasetNew
 import torch.utils.data
 from model_object import models
 from Config import parse_args
@@ -14,7 +14,7 @@ import numpy as np
 #99480885
 #
 def prepare_to_train(mri_dir, pet_dir, cli_dir, csv_file, batch_size, model_index,
-                     seed, device, data_parallel, n_splits):
+                     seed, device, data_parallel, n_splits, others_params):
     global experiment_settings
     assert torch.cuda.is_available(), "Please ensure codes are executed on cuda."
     try:
@@ -24,7 +24,8 @@ def prepare_to_train(mri_dir, pet_dir, cli_dir, csv_file, batch_size, model_inde
     torch.cuda.empty_cache()
 
     # 初始化数据集
-    dataset = MriPetDataset(mri_dir, pet_dir, cli_dir, csv_file)
+    # dataset = MriPetDataset(mri_dir, pet_dir, cli_dir, csv_file, valid_group=("pMCI", "sMCI"))
+    dataset = MriPetDatasetNew(mri_dir, pet_dir, cli_dir, csv_file, valid_group=("pMCI", "sMCI"))
     torch.manual_seed(seed)
 
     # K折交叉验证
@@ -47,9 +48,9 @@ def prepare_to_train(mri_dir, pet_dir, cli_dir, csv_file, batch_size, model_inde
         train_sampler = torch.utils.data.SubsetRandomSampler(train_index)
         val_sampler = torch.utils.data.SubsetRandomSampler(test_index)
         trainDataLoader = torch.utils.data.DataLoader(dataset, sampler=train_sampler, batch_size=batch_size,
-                                                      num_workers=4)
+                                                      num_workers=4, drop_last=True)
         testDataLoader = torch.utils.data.DataLoader(dataset, sampler=val_sampler, batch_size=batch_size,
-                                                     num_workers=4)
+                                                     num_workers=4, drop_last=True)
 
         # 分割数据集
         # train_dataset = torch.utils.data.Subset(dataset, train_index)
@@ -82,9 +83,9 @@ def prepare_to_train(mri_dir, pet_dir, cli_dir, csv_file, batch_size, model_inde
         model = _model()
 
         # 冻结Resnet层的参数
-        for name, param in model.named_parameters():
-            if "Resnet" in name:
-                param.requires_grad = False
+        # for name, param in model.named_parameters():
+        #     if "Resnet" in name:
+        #         param.requires_grad = False
 
         # 使用 DataParallel 进行多GPU训练
         if torch.cuda.device_count() > 1 and data_parallel == 1:
@@ -98,10 +99,11 @@ def prepare_to_train(mri_dir, pet_dir, cli_dir, csv_file, batch_size, model_inde
         observer.log("\n===============================================\n")
 
         # 超参数设置
-        # optimizer = experiment_settings['Optimizer'](model.parameters(), experiment_settings['Lr'])
+        optimizer = experiment_settings['Optimizer'](model.parameters(), experiment_settings['Lr'])
+        scheduler = experiment_settings['Scheduler'](optimizer, others_params)
         # 定义一个filter，只传入requires_grad=True的模型参数
-        optimizer = experiment_settings['Optimizer'](filter(lambda p: p.requires_grad, model.parameters()),
-                                                     experiment_settings['Lr'])
+        # optimizer = experiment_settings['Optimizer'](filter(lambda p: p.requires_grad, model.parameters()),
+        #                                              experiment_settings['Lr'])
 
         if 'w1' in experiment_settings:
             criterion = experiment_settings['Loss'](w1=experiment_settings['w1'], w2=experiment_settings['w2'])
@@ -113,7 +115,7 @@ def prepare_to_train(mri_dir, pet_dir, cli_dir, csv_file, batch_size, model_inde
         # 启动训练
         _run = experiment_settings['Run']
         _run(observer, experiment_settings['Epoch'], trainDataLoader, testDataLoader, model, device,
-             optimizer, criterion)
+             optimizer, criterion, scheduler)
 
         # 收集评估指标
         metrics['accuracy'].append(observer.best_dicts['acc'])
@@ -138,4 +140,5 @@ if __name__ == "__main__":
     # prepare_to_train(model_index=args.model, mri_dir=args.mri_dir, pet_dir=args.pet_dir, cli_dir=args.cli_dir, csv_file=args.csv_file, batch_size=args.batch_size, seed=args.seed , device=args.device, fold=args.fold, data_parallel=args.data_parallel)
     prepare_to_train(model_index=args.model, mri_dir=args.mri_dir, pet_dir=args.pet_dir,
                      cli_dir=args.cli_dir,csv_file=args.csv_file, batch_size=args.batch_size,
-                     seed=args.seed, device=args.device, data_parallel=args.data_parallel, n_splits=args.n_splits)
+                     seed=args.seed, device=args.device, data_parallel=args.data_parallel,
+                     n_splits=args.n_splits, others_params=args)

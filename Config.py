@@ -39,7 +39,8 @@ def parse_args():
     parser.add_argument('--beta1', type=float, default=0.5, help='momentum term of adam')
     parser.add_argument('--lr', type=float, default=0.001, help='initial learning rate for adam')
     parser.add_argument('--lr_decay', type=float, default=0.95, help='initial lambda decay value')
-    parser.add_argument('--lr_policy', type=str, default='exp', help='learning rate policy: lambda|step|plateau|cosine')
+    parser.add_argument('--niter', type=int, default=50, help='lr decay step for cosine scheduler')
+    parser.add_argument('--lr_policy', type=str, default='cosine', help='learning rate policy: lambda|step|plateau|cosine')
     parser.add_argument('--interpolation_lambda', type=float, default=20.0, help='interpolation strength')
     args = parser.parse_args()
 
